@@ -15,6 +15,20 @@ const headers = {
     : {}),
 };
 
+const OPENFREEMAP_HOSTNAME = 'tiles.openfreemap.org';
+
+const isOpenFreeMapUrl = (value) => {
+  if (typeof value !== 'string') return false;
+  try {
+    const parsed = new URL(value);
+    return (
+      parsed.protocol === 'https:' && parsed.hostname === OPENFREEMAP_HOSTNAME
+    );
+  } catch {
+    return false;
+  }
+};
+
 const fetchThroughProxy = async (resourceUrl) => {
   const target = new URL('/api/map-proxy', origin);
   target.searchParams.set('url', resourceUrl);
@@ -23,117 +37,85 @@ const fetchThroughProxy = async (resourceUrl) => {
   return { response, contentType };
 };
 
-const styleUrl = 'https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json';
-const { response: styleResponse, contentType: styleContentType } =
-  await fetchThroughProxy(styleUrl);
-const styleBody = await styleResponse.text();
-if (!styleResponse.ok) {
-  throw new Error(
-    `map proxy returned HTTP ${styleResponse.status} (${styleContentType}) for ${styleUrl}: ${styleBody.slice(0, 180)}`
-  );
-}
-if (!styleContentType.toLowerCase().includes('application/json')) {
-  throw new Error(
-    `map proxy returned ${styleContentType || 'no content type'} instead of JSON`
-  );
-}
-
-const style = JSON.parse(styleBody);
-
-// Carto serves the same basemap style in more than one source shape: older
-// documents point at a TileJSON URL (sources.<name>.url), newer ones inline the
-// tile template (sources.<name>.tiles). Accept either, but prove the source
-// really is Carto streets data behind a host the proxy is allowed to fetch.
-const proxiedHostnames = new Set([
-  'basemaps.cartocdn.com',
-  'tiles.basemaps.cartocdn.com',
-  'tiles-a.basemaps.cartocdn.com',
-  'tiles-b.basemaps.cartocdn.com',
-  'tiles-c.basemaps.cartocdn.com',
-  'tiles-d.basemaps.cartocdn.com',
-  'a.basemaps.cartocdn.com',
-  'b.basemaps.cartocdn.com',
-  'c.basemaps.cartocdn.com',
-  'd.basemaps.cartocdn.com',
-]);
-
-const isProxiedCartoStreetsUrl = (value) => {
-  if (typeof value !== 'string') return false;
-  if (!value.includes('carto.streets')) return false;
-  try {
-    return proxiedHostnames.has(new URL(value).hostname);
-  } catch {
-    return false;
+const fetchJsonThroughProxy = async (resourceUrl, label) => {
+  const { response, contentType } = await fetchThroughProxy(resourceUrl);
+  const body = await response.text();
+  if (!response.ok) {
+    throw new Error(
+      `map proxy returned HTTP ${response.status} (${contentType}) for ${resourceUrl}: ${body.slice(0, 180)}`
+    );
   }
+  if (!contentType.toLowerCase().includes('application/json')) {
+    throw new Error(
+      `map proxy returned ${contentType || 'no content type'} instead of JSON for ${label}`
+    );
+  }
+  return { json: JSON.parse(body), response, contentType, body };
 };
 
-const cartoSourceUrls = Object.values(style?.sources ?? {}).flatMap(
-  (source) => [
+const styleUrls = [
+  'https://tiles.openfreemap.org/styles/bright',
+  'https://tiles.openfreemap.org/styles/dark',
+];
+
+let primaryStyle;
+for (const styleUrl of styleUrls) {
+  const { json, response, contentType, body } = await fetchJsonThroughProxy(
+    styleUrl,
+    styleUrl
+  );
+  const sourceUrls = Object.values(json?.sources ?? {}).flatMap((source) => [
     ...(typeof source?.url === 'string' ? [source.url] : []),
     ...(Array.isArray(source?.tiles)
       ? source.tiles.filter((tile) => typeof tile === 'string')
       : []),
-  ]
-);
-
-if (style?.version !== 8 || !cartoSourceUrls.some(isProxiedCartoStreetsUrl)) {
-  throw new Error('map proxy returned an unexpected Carto style document');
-}
-
-// The style's own tile template is the URL the map really requests, so probe it
-// too: a wrong tile host answers 404 for every tile and leaves the map blank
-// while the style check still passes.
-const vectorTileTemplate = cartoSourceUrls.find(
-  (url) => isProxiedCartoStreetsUrl(url) && url.includes('{z}')
-);
-if (vectorTileTemplate) {
-  const vectorTileUrl = vectorTileTemplate
-    .replace('{z}', '10')
-    .replace('{x}', '857')
-    .replace('{y}', '418');
-  if (!vectorTileUrl.includes('{')) {
-    const { response: vectorResponse, contentType: vectorContentType } =
-      await fetchThroughProxy(vectorTileUrl);
-    const vectorBody = Buffer.from(await vectorResponse.arrayBuffer());
-    if (!vectorResponse.ok) {
-      throw new Error(
-        `map proxy returned HTTP ${vectorResponse.status} for the basemap vector tile ${vectorTileUrl}`
-      );
-    }
-    if (vectorBody.length === 0) {
-      throw new Error(`map proxy returned an empty basemap vector tile`);
-    }
-    process.stdout.write(
-      `map proxy passed: vector tile HTTP ${vectorResponse.status}, ${vectorContentType}, ${vectorBody.length} bytes\n`
-    );
-  }
-}
-
-// Raster basemap tiles stay on the proxy allowlist, so keep probing them: a
-// wrong raster host answers 404 for every tile while the style check passes.
-for (const theme of ['dark_all', 'light_all']) {
-  const tileUrl = `https://a.basemaps.cartocdn.com/${theme}/10/857/418.png`;
-  const { response: tileResponse, contentType: tileContentType } =
-    await fetchThroughProxy(tileUrl);
-  const tileBody = Buffer.from(await tileResponse.arrayBuffer());
-  if (!tileResponse.ok) {
+  ]);
+  if (json?.version !== 8 || !sourceUrls.some(isOpenFreeMapUrl)) {
     throw new Error(
-      `map proxy returned HTTP ${tileResponse.status} for the ${theme} basemap tile ${tileUrl}`
+      `map proxy returned an unexpected OpenFreeMap style document for ${styleUrl}`
     );
   }
-  if (!tileContentType.toLowerCase().includes('image/')) {
-    throw new Error(
-      `map proxy returned ${tileContentType || 'no content type'} instead of an image for ${tileUrl}`
-    );
-  }
-  if (tileBody.length === 0) {
-    throw new Error(`map proxy returned an empty ${theme} basemap tile`);
-  }
+  if (!primaryStyle) primaryStyle = json;
   process.stdout.write(
-    `map proxy passed: ${theme} tile HTTP ${tileResponse.status}, ${tileContentType}, ${tileBody.length} bytes\n`
+    `map proxy passed: style ${styleUrl} HTTP ${response.status}, ${contentType}, ${body.length} bytes\n`
   );
 }
 
+const vectorSourceUrl = Object.values(primaryStyle?.sources ?? {})
+  .map((source) => source?.url)
+  .find((url) => isOpenFreeMapUrl(url));
+
+if (!vectorSourceUrl) {
+  throw new Error('OpenFreeMap style is missing a proxied vector source URL');
+}
+
+const { json: tileJson } = await fetchJsonThroughProxy(
+  vectorSourceUrl,
+  'vector TileJSON'
+);
+const vectorTileTemplate = Array.isArray(tileJson?.tiles)
+  ? tileJson.tiles.find((url) => isOpenFreeMapUrl(url) && url.includes('{z}'))
+  : undefined;
+
+if (!vectorTileTemplate) {
+  throw new Error('OpenFreeMap TileJSON is missing a proxied tile template');
+}
+
+const vectorTileUrl = vectorTileTemplate
+  .replace('{z}', '10')
+  .replace('{x}', '857')
+  .replace('{y}', '418');
+const { response: vectorResponse, contentType: vectorContentType } =
+  await fetchThroughProxy(vectorTileUrl);
+const vectorBody = Buffer.from(await vectorResponse.arrayBuffer());
+if (!vectorResponse.ok) {
+  throw new Error(
+    `map proxy returned HTTP ${vectorResponse.status} for the basemap vector tile ${vectorTileUrl}`
+  );
+}
+if (vectorBody.length === 0) {
+  throw new Error('map proxy returned an empty basemap vector tile');
+}
 process.stdout.write(
-  `map proxy passed: style HTTP ${styleResponse.status}, ${styleContentType}, ${styleBody.length} bytes\n`
+  `map proxy passed: vector tile HTTP ${vectorResponse.status}, ${vectorContentType}, ${vectorBody.length} bytes\n`
 );

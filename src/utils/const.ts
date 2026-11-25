@@ -215,8 +215,8 @@ export const WALKING_COLOR = HIKING_COLOR;
 export const SWIMMING_COLOR = 'rgb(255,51,51)';
 export const INDOOR_COLOR = '#8899aa';
 
-// map tiles vendor: mapcn, maptiler, mapbox, or stadiamaps
-export const MAP_TILE_VENDOR = 'mapcn';
+// map tiles vendor: mapcn, mapcn_openfreemap, maptiler, mapbox, or stadiamaps
+export const MAP_TILE_VENDOR = 'mapcn_openfreemap';
 
 // map tiles style name, see MAP_TILE_STYLES for valid combinations
 export const MAP_TILE_STYLE_LIGHT = 'osm-bright';

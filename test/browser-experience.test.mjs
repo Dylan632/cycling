@@ -218,6 +218,7 @@ const createBrowserPage = async (width, { forceNoWebGL = false } = {}) => {
     route.fulfill({ status: 404, body: 'unexpected style slug' })
   );
   for (const styleUrl of [
+    'https://tiles.openfreemap.org/styles/bright',
     'https://tiles.openfreemap.org/styles/positron',
     'https://tiles.openfreemap.org/styles/dark',
   ]) {
