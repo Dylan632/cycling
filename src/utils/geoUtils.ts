@@ -144,7 +144,7 @@ export const getTotalOverviewBoundsForRuns = (
   runs: Activity[]
 ): IViewState => {
   const allRouteGeometries = normalizeRouteGeometries(runs);
-  if (mode !== 'running') {
+  if (mode === 'cycling') {
     return fitRouteGeometries(allRouteGeometries);
   }
 

@@ -4,9 +4,7 @@ import { useActivityMode } from '@/modules/activity/ActivityModeProvider';
 import type { ActivityMode } from '@/modules/activity/profiles';
 
 const YEARS_DESCRIPTIONS: Record<ActivityMode, string> = {
-  running: ' 年里我跑过',
   cycling: ' 年里我骑过',
-  hiking: ' 年里我徒步过',
 };
 
 // only support China for now

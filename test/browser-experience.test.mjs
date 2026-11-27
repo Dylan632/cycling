@@ -8,7 +8,7 @@ import axe from 'axe-core';
 import { chromium } from 'playwright-core';
 import { build, preview } from 'vite';
 
-const MODES = ['running', 'cycling', 'hiking'];
+const MODES = ['cycling'];
 const MOBILE_WIDTHS = [375, 390, 768];
 const VIEWPORT_HEIGHT = 900;
 const MIN_TOUCH_TARGET_PX = 44;
@@ -769,19 +769,19 @@ test(
 );
 
 test(
-  'running 3.0 dashboard is responsive, accessible, and isolated to running data',
+  'cycling 3.0 dashboard is responsive, accessible, and isolated to cycling data',
   { timeout: 90_000 },
   async (t) => {
     for (const width of MOBILE_WIDTHS) {
-      await t.test(`running dashboard at ${width}px`, async () => {
+      await t.test(`cycling dashboard at ${width}px`, async () => {
         const session = await createBrowserPage(width);
         try {
-          const response = await session.page.goto(`${origin}/running`, {
+          const response = await session.page.goto(`${origin}/cycling`, {
             waitUntil: 'domcontentloaded',
           });
-          assert.equal(response?.ok(), true, 'Failed to load /running');
+          assert.equal(response?.ok(), true, 'Failed to load /cycling');
           await session.page
-            .locator('[data-app-ready="running"]')
+            .locator('[data-app-ready="cycling"]')
             .waitFor({ state: 'visible' });
           await session.page
             .locator('.dashboard .activity-log-card')
@@ -799,15 +799,15 @@ test(
           }));
           assert.ok(
             layout.documentWidth <= layout.viewportWidth + 1,
-            `Running dashboard overflows by ${layout.documentWidth - layout.viewportWidth}px`
+            `Cycling dashboard overflows by ${layout.documentWidth - layout.viewportWidth}px`
           );
           assert.ok(
             layout.headerVisible > 0,
-            'Running dashboard header is missing'
+            'Cycling dashboard header is missing'
           );
           assert.ok(
             layout.cardCount >= 4,
-            'Running dashboard cards did not render'
+            'Cycling dashboard cards did not render'
           );
 
           const severeViolations = await runAxeAudit(session.page);
@@ -816,20 +816,20 @@ test(
           assert.deepEqual(
             unexpectedViolations,
             [],
-            `Unexpected serious/critical axe violations on running dashboard at ${width}px`
+            `Unexpected serious/critical axe violations on cycling dashboard at ${width}px`
           );
 
           const dataRequests = ownActivityDataRequests(session.requestUrls);
           assert.ok(
             dataRequests.length >= 2,
-            'Running dashboard did not request running metadata/routes'
+            'Cycling dashboard did not request cycling metadata/routes'
           );
           assert.equal(
             dataRequests.every(({ pathname }) =>
-              pathname.startsWith('/data/running/')
+              pathname.startsWith('/data/cycling/')
             ),
             true,
-            `Running dashboard requested another mode's data: ${dataRequests
+            `Cycling dashboard requested another mode's data: ${dataRequests
               .map(({ pathname }) => pathname)
               .join(', ')}`
           );
@@ -843,16 +843,16 @@ test(
 );
 
 test(
-  'running 3.0 header navigates Home, Tracks, and Summary without changing other modes',
+  'cycling 3.0 header navigates Home, Tracks, and Summary without changing other modes',
   { timeout: 60_000 },
   async () => {
     const session = await createBrowserPage(1280);
     try {
-      await openActivityPage(session.page, 'running');
+      await openActivityPage(session.page, 'cycling');
 
       await session.page.getByRole('button', { name: '轨迹墙' }).click();
       await session.page.waitForURL(
-        (url) => url.pathname === '/running/tracks'
+        (url) => url.pathname === '/cycling/tracks'
       );
       await session.page
         .getByRole('heading', { name: /轨迹墙|Tracks/ })
@@ -860,12 +860,12 @@ test(
 
       await session.page.getByRole('button', { name: 'Summary' }).click();
       await session.page.waitForURL(
-        (url) => url.pathname === '/running/summary'
+        (url) => url.pathname === '/cycling/summary'
       );
       await session.page.getByRole('heading', { name: 'Summary' }).waitFor();
 
       await session.page.getByRole('button', { name: '首页' }).click();
-      await session.page.waitForURL((url) => url.pathname === '/running');
+      await session.page.waitForURL((url) => url.pathname === '/cycling');
       await session.page
         .locator('.dashboard .activity-log-card')
         .waitFor({ state: 'visible' });
@@ -880,51 +880,14 @@ test(
       );
       assert.equal(
         await modeSwitcher.getByRole('link', { name: '徒步' }).count(),
-        1,
-        'Hiking switch is missing from the dashboard header'
+        0,
+        'Hiking switch should not be present in a cycling-only dashboard'
       );
-      session.assertNoRuntimeErrors();
-    } finally {
-      await session.context.close();
-    }
-  }
-);
-
-test(
-  'a second mode click wins even when the first one resolves later',
-  { timeout: 90_000 },
-  async () => {
-    const session = await createBrowserPage(1280);
-    try {
-      // Make the abandoned mode the slow one, so its deferred navigation is
-      // guaranteed to land after the mode the user actually chose. The delay is
-      // a timer in the route handler, not a machine-speed race, so a short one
-      // proves the same ordering.
-      await session.context.route(
-        '**/data/cycling/routes/**',
-        async (route) => {
-          await new Promise((resolve) => setTimeout(resolve, 750));
-          await route.continue();
-        }
-      );
-
-      await openActivityPage(session.page, 'running');
-      const modeSwitcher = session.page.getByRole('navigation', {
-        name: '运动类型切换',
-      });
-
-      await modeSwitcher.getByRole('link', { name: '骑行' }).click();
-      await modeSwitcher.getByRole('link', { name: '徒步' }).click();
-      await session.page.waitForURL((url) => url.pathname === '/hiking');
-
-      // Give the abandoned cycling preload time to finish and try to navigate.
-      await session.page.waitForTimeout(2_000);
       assert.equal(
-        new URL(session.page.url()).pathname,
-        '/hiking',
-        'a slower earlier click navigated on top of the mode the user chose'
+        await modeSwitcher.getByRole('link', { name: '跑步' }).count(),
+        0,
+        'Running switch should not be present in a cycling-only dashboard'
       );
-
       session.assertNoRuntimeErrors();
     } finally {
       await session.context.close();
@@ -950,7 +913,7 @@ test(
           })
       );
 
-      await openActivityPage(session.page, 'running');
+      await openActivityPage(session.page, 'cycling');
       await session.page
         .locator('#map-container canvas.maplibregl-canvas')
         .waitFor({ state: 'visible' });
@@ -972,124 +935,6 @@ test(
         colours >= 4,
         `the map canvas only painted ${colours} distinct colours, so the basemap never reached the screen`
       );
-
-      session.assertNoRuntimeErrors();
-    } finally {
-      await session.context.close();
-    }
-  }
-);
-
-test(
-  'activity mode switches keep the current dashboard visible while target data preloads',
-  { timeout: 90_000 },
-  async () => {
-    const session = await createBrowserPage(1280);
-    let releaseCyclingManifest;
-    let markCyclingManifestStarted;
-    const cyclingManifestStarted = new Promise((resolve) => {
-      markCyclingManifestStarted = resolve;
-    });
-    const cyclingManifestGate = new Promise((resolve) => {
-      releaseCyclingManifest = resolve;
-    });
-
-    await session.context.route(
-      '**/data/cycling/manifest.json',
-      async (route) => {
-        markCyclingManifestStarted();
-        await cyclingManifestGate;
-        await route.continue();
-      }
-    );
-
-    try {
-      await openActivityPage(session.page, 'running');
-      const runningDashboard = session.page.locator(
-        '.dashboard[data-app-ready="running"]'
-      );
-      await runningDashboard.waitFor({ state: 'visible' });
-
-      const cyclingLink = session.page
-        .getByRole('navigation', { name: '运动类型切换' })
-        .getByRole('link', { name: '骑行' });
-
-      await cyclingLink.hover();
-      await cyclingManifestStarted;
-      await cyclingLink.click();
-
-      assert.equal(
-        new URL(session.page.url()).pathname,
-        '/running',
-        'mode navigation started before cycling data was ready'
-      );
-      await runningDashboard.waitFor({ state: 'visible' });
-      assert.ok(
-        ((await session.page.locator('#root').textContent()) ?? '').trim()
-          .length > 0,
-        'the app root became blank while cycling data was preloading'
-      );
-
-      releaseCyclingManifest();
-      await session.page.waitForURL((url) => url.pathname === '/cycling');
-      await session.page
-        .locator('.dashboard[data-app-ready="cycling"]')
-        .waitFor({ state: 'visible' });
-      session.assertNoRuntimeErrors();
-    } finally {
-      releaseCyclingManifest?.();
-      await session.context.close();
-    }
-  }
-);
-
-test(
-  'switching activity modes keeps the map alive instead of crashing the page',
-  { timeout: 90_000 },
-  async () => {
-    const session = await createBrowserPage(1280);
-    try {
-      await openActivityPage(session.page, 'running');
-
-      const mapStatus = session.page.locator('.route-map-footer');
-      await mapStatus.waitFor({ state: 'visible' });
-
-      const modeSwitcher = session.page.getByRole('navigation', {
-        name: '运动类型切换',
-      });
-
-      for (const [label, path] of [
-        ['骑行', '/cycling'],
-        ['徒步', '/hiking'],
-        ['跑步', '/running'],
-      ]) {
-        await modeSwitcher.getByRole('link', { name: label }).click();
-        await session.page.waitForURL((url) => url.pathname === path);
-        await session.page
-          .locator('.dashboard .activity-log-card')
-          .waitFor({ state: 'visible' });
-
-        // The map is rebuilt or re-fitted on every switch. A stale style ref
-        // used to make addSource throw "Style is not done loading", which the
-        // app error boundary turned into a full-page failure.
-        assert.equal(
-          await session.page.getByText('运动记录暂时无法加载').count(),
-          0,
-          `switching to ${label} rendered the fatal error boundary`
-        );
-        assert.equal(
-          await session.page
-            .locator('#map-container canvas.maplibregl-canvas')
-            .count(),
-          1,
-          `switching to ${label} lost the map canvas`
-        );
-        assert.doesNotMatch(
-          (await mapStatus.textContent()) ?? '',
-          /加载失败|failed to load/i,
-          `switching to ${label} left the basemap in a failed state`
-        );
-      }
 
       session.assertNoRuntimeErrors();
     } finally {
@@ -2327,7 +2172,7 @@ test(
     let failedRequests = 0;
     try {
       await session.context.route(
-        `${origin}/data/running/manifest.json`,
+        `${origin}/data/cycling/manifest.json`,
         async (route) => {
           if (failedRequests === 0) {
             failedRequests += 1;
@@ -2342,7 +2187,7 @@ test(
         }
       );
 
-      const response = await session.page.goto(`${origin}/running`, {
+      const response = await session.page.goto(`${origin}/cycling`, {
         waitUntil: 'domcontentloaded',
       });
       assert.equal(response?.ok(), true);
@@ -2362,7 +2207,7 @@ test(
       session.clearRuntimeErrors();
       await retry.click();
       await session.page
-        .locator('[data-app-ready="running"]')
+        .locator('[data-app-ready="cycling"]')
         .waitFor({ state: 'visible' });
       assert.equal(failedRequests, 1);
       session.assertNoRuntimeErrors();

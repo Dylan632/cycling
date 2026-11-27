@@ -28,7 +28,7 @@ export const ActivityModeProvider = ({ children }: PropsWithChildren) => {
   const location = useLocation();
   const mode = isActivityMode(params.activityMode)
     ? params.activityMode
-    : 'running';
+    : 'cycling';
   const profile = getActivityProfile(mode);
 
   const value = useMemo<ActivityModeContextValue>(() => {

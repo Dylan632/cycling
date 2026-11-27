@@ -43,7 +43,7 @@ const ActivityShell = () => {
   const location = useLocation();
   if (!isActivityMode(activityMode)) {
     return (
-      <Navigate to={`/running${location.search}${location.hash}`} replace />
+      <Navigate to={`/cycling${location.search}${location.hash}`} replace />
     );
   }
   return (
@@ -55,7 +55,7 @@ const ActivityShell = () => {
 
 const DefaultActivityRedirect = () => {
   const location = useLocation();
-  return <Navigate to={`/running${location.search}${location.hash}`} replace />;
+  return <Navigate to={`/cycling${location.search}${location.hash}`} replace />;
 };
 
 if (USE_GOOGLE_ANALYTICS) {

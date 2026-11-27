@@ -46,10 +46,10 @@ test('one insights module owns weighted totals, averages, maxima, and missing va
         streak: 5,
       }),
     ],
-    'running'
+    'cycling'
   );
 
-  assert.equal(insights.mode, 'running');
+  assert.equal(insights.mode, 'cycling');
   assert.equal(insights.count, 2);
   assert.equal(insights.totalDistanceMeters, 20_000);
   assert.equal(insights.totalMovingSeconds, 5_400);
@@ -75,7 +75,7 @@ test('year summaries and Total use the same aggregation rules', async () => {
         start_date_local: '2026-02-01 08:00:00',
       }),
     ],
-    'running'
+    'cycling'
   );
 
   assert.equal(summaries.get('2025').count, 1);

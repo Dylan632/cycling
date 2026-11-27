@@ -55,12 +55,12 @@ test('Vercel serves all SPA activity paths with freshness-aware data caching', a
   assert.deepEqual(config.redirects.slice(0, 2), [
     {
       source: '/',
-      destination: '/running',
+      destination: '/cycling',
       permanent: false,
     },
     {
       source: '/summary',
-      destination: '/running/summary',
+      destination: '/cycling/summary',
       permanent: false,
     },
   ]);
@@ -639,9 +639,7 @@ test('deployment monitor checks SPA routes, cache policy, and publication freshn
       '--require-cache',
     ]);
     assert.equal(result.code, 0, result.stderr);
-    assert.match(result.stdout, /running.*fresh/);
     assert.match(result.stdout, /cycling.*fresh/);
-    assert.match(result.stdout, /hiking.*fresh/);
     assert.match(result.stdout, /deployment monitor passed/);
   } finally {
     await new Promise((resolve, reject) =>
@@ -653,19 +651,23 @@ test('deployment monitor checks SPA routes, cache policy, and publication freshn
 test('deployment monitor rejects activities outside the published mode policy', async () => {
   const invalidCases = [
     {
-      name: 'a hike at the exact 1 km boundary',
-      mode: 'hiking',
-      activity: { run_id: 'boundary', type: 'Hiking', distance: 1_000 },
+      name: 'a Ride at the exact 10 km boundary',
+      mode: 'cycling',
+      activity: { run_id: 'boundary', type: 'Ride', distance: 10_000 },
     },
     {
-      name: 'a non-Hiking walking activity',
-      mode: 'hiking',
-      activity: { run_id: 'walk', type: 'Walk', distance: 2_000 },
+      name: 'a non-cycling walking activity',
+      mode: 'cycling',
+      activity: { run_id: 'walk', type: 'Walk', distance: 20_000 },
     },
     {
-      name: 'an indoor VirtualRun',
-      mode: 'running',
-      activity: { run_id: 'indoor', type: 'VirtualRun', distance: 5_000 },
+      name: 'an excluded no-track Ride',
+      mode: 'cycling',
+      activity: {
+        run_id: '9223370286779077807',
+        type: 'Ride',
+        distance: 20_000,
+      },
     },
   ];
 
@@ -766,7 +768,7 @@ test('deployment monitor authenticates protected HTTP checks without leaking its
     const suppliedSecret = request.headers['x-vercel-protection-bypass'];
     seenRequests.push({ path, suppliedSecret });
 
-    if (path === '/running' && suppliedSecret === redactionSecret) {
+    if (path === '/cycling' && suppliedSecret === redactionSecret) {
       response.statusCode = 302;
       response.setHeader('location', `/leaked-${redactionSecret}`);
       response.end();
@@ -855,18 +857,10 @@ test('deployment monitor authenticates protected HTTP checks without leaking its
     assert.deepEqual(
       seenRequests.map(({ path }) => path),
       [
-        '/running',
-        '/data/running/manifest.json',
-        '/data/running/metadata.json',
-        '/data/running/routes/2026.json',
         '/cycling',
         '/data/cycling/manifest.json',
         '/data/cycling/metadata.json',
         '/data/cycling/routes/2026.json',
-        '/hiking',
-        '/data/hiking/manifest.json',
-        '/data/hiking/metadata.json',
-        '/data/hiking/routes/2026.json',
       ]
     );
     assert.ok(

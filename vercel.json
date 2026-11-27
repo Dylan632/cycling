@@ -13,12 +13,12 @@
   "redirects": [
     {
       "source": "/",
-      "destination": "/running",
+      "destination": "/cycling",
       "permanent": false
     },
     {
       "source": "/summary",
-      "destination": "/running/summary",
+      "destination": "/cycling/summary",
       "permanent": false
     }
   ],

@@ -144,53 +144,6 @@ test('profile export supplies filter policy without duplicating it in workflow Y
   }
 });
 
-test('running poster plans exclude indoor subtypes from every generated asset', async () => {
-  const fixture = await mkdtemp(join(tmpdir(), 'running-artifacts-plan-'));
-  const input = join(fixture, 'activities.json');
-
-  try {
-    await writeFile(
-      input,
-      JSON.stringify([
-        {
-          run_id: 1,
-          type: 'Run',
-          subtype: 'Run',
-          distance: 5_000,
-          start_date_local: '2026-07-25 08:00:00',
-        },
-      ])
-    );
-
-    const result = runArtifacts([
-      'plan',
-      '--mode',
-      'running',
-      '--input',
-      input,
-      '--published-at',
-      '2026-07-28T00:00:00Z',
-    ]);
-
-    assert.equal(result.status, 0, result.stderr);
-    const plan = JSON.parse(result.stdout);
-    for (const { command } of plan.posters) {
-      for (const subtype of [
-        'indoor',
-        'treadmill',
-        'virtualrun',
-        'virtual_run',
-      ]) {
-        const subtypeIndex = command.indexOf(subtype);
-        assert.ok(subtypeIndex > 0);
-        assert.equal(command[subtypeIndex - 1], '--exclude-subtype');
-      }
-    }
-  } finally {
-    await rm(fixture, { recursive: true, force: true });
-  }
-});
-
 test('generation publishes a complete mode only after data and posters validate', async () => {
   const fixture = await mkdtemp(join(tmpdir(), 'activity-artifacts-generate-'));
   const input = join(fixture, 'activities.json');
@@ -317,7 +270,7 @@ test('Pages is manual and defaults to a canonical redirect while full publicatio
   }
 });
 
-test('activity sync publishes Hiking and calls exact-SHA CI and Vercel workflows', async () => {
+test('activity sync publishes Cycling and calls exact-SHA CI and Vercel workflows', async () => {
   const [workflow, config] = await Promise.all([
     readFile('.github/workflows/run_data_sync.yml', 'utf8'),
     readFile('run_page/config.py', 'utf8'),
@@ -337,18 +290,13 @@ test('activity sync publishes Hiking and calls exact-SHA CI and Vercel workflows
   assert.match(workflow, /PUBLICATION_TIMESTAMP="\$\(date -u/);
   assert.equal(
     (workflow.match(/--published-at "\$PUBLICATION_TIMESTAMP"/g) ?? []).length,
-    3
+    1
   );
-  assert.match(workflow, /--mode running/);
   assert.match(workflow, /--mode cycling/);
-  assert.match(workflow, /--mode hiking/);
-  assert.match(workflow, /--sync-types hiking/);
+  assert.match(workflow, /--sync-types cycling/);
   assert.match(workflow, /Sync manual GPX cycling data/);
   assert.match(workflow, /Backfill missing historical cycling tracks/);
-  assert.match(workflow, /\.activity-last-known-good\/running/);
   assert.match(workflow, /\.activity-last-known-good\/cycling/);
-  assert.match(workflow, /\.activity-last-known-good\/hiking/);
-  assert.match(workflow, /HIKING_PREVIOUS_SNAPSHOT/);
   assert.match(workflow, /source_sha=\$\(git rev-parse HEAD\)/);
   assert.match(workflow, /uses: \.\/\.github\/workflows\/ci\.yml/);
   assert.match(
@@ -372,7 +320,7 @@ test('activity sync publishes Hiking and calls exact-SHA CI and Vercel workflows
   assert.doesNotMatch(workflow, /Over 10km Runs/);
 });
 
-test('daily data publication validates all modes and makes one atomic source commit', async () => {
+test('daily data publication validates the cycling mode and makes one atomic source commit', async () => {
   const workflow = await readFile(
     '.github/workflows/run_data_sync.yml',
     'utf8'
@@ -385,30 +333,21 @@ test('daily data publication validates all modes and makes one atomic source com
     1
   );
   assert.ok(
-    workflow.indexOf('--mode running') < workflow.indexOf('--mode cycling')
-  );
-  assert.ok(
-    workflow.indexOf('--mode cycling') < workflow.indexOf('--mode hiking')
-  );
-  assert.ok(
     workflow.indexOf('generate-activity-artifacts.mjs verify') <
       workflow.indexOf('git commit')
   );
   assert.ok(
     workflow.indexOf('activity_snapshot.py validate') <
-      workflow.indexOf('--mode running')
+      workflow.indexOf('generate-activity-artifacts.mjs generate')
   );
   assert.equal(
     (workflow.match(/activity_snapshot\.py validate/g) ?? []).length,
-    3
+    1
   );
+  assert.match(workflow, /git add public\/data\/cycling assets\/cycling/);
   assert.match(
     workflow,
-    /git add public\/data\/running public\/data\/cycling public\/data\/hiking[\s\\\n]+assets\/running assets\/cycling assets\/hiking/
-  );
-  assert.match(
-    workflow,
-    /\$\{\{ runner\.temp \}\}\/hiking-activity-snapshot\.json/
+    /\$\{\{ runner\.temp \}\}\/cycling-activity-snapshot\.json/
   );
   assert.match(workflow, /for attempt in 1 2 3/);
   assert.match(workflow, /git fetch origin master/);

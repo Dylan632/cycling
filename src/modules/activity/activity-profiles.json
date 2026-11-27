@@ -14,12 +14,7 @@
         "journeyTitle": "Cycling Journey",
         "name": "Ride"
       },
-      "activityTypes": [
-        "Ride",
-        "VirtualRide",
-        "cycling",
-        "Biking"
-      ],
+      "activityTypes": ["Ride", "VirtualRide", "cycling", "Biking"],
       "publication": {
         "minDistanceMeters": 10000,
         "excludeRunIds": [
@@ -39,10 +34,7 @@
         "sportType": "cycling",
         "minimumDistanceKm": 10,
         "gridMinimumDistanceKm": 20,
-        "specialDistancesKm": [
-          20,
-          50
-        ],
+        "specialDistancesKm": [20, 50],
         "colors": {
           "background": "#222222",
           "track": "#4DD2FF",

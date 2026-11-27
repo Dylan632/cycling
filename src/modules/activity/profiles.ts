@@ -53,7 +53,7 @@ const createProfile = (raw: RawProfile): ActivityProfile => ({
     ...raw.publication,
     excludeRunIds: new Set(raw.publication.excludeRunIds),
     excludeSubtypes: new Set(
-      raw.publication.excludeSubtypes.map((subtype) =>
+      (raw.publication.excludeSubtypes as string[]).map((subtype) =>
         subtype.trim().toLowerCase()
       )
     ),
@@ -71,9 +71,7 @@ const profiles: Record<ActivityMode, ActivityProfile> = {
   cycling: createProfile(profileSource.profiles.cycling),
 };
 
-export const ACTIVITY_MODES = Object.freeze([
-  profiles.cycling,
-]);
+export const ACTIVITY_MODES = Object.freeze([profiles.cycling]);
 
 export const isActivityMode = (value: unknown): value is ActivityMode =>
   value === 'cycling';

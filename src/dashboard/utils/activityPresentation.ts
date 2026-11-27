@@ -13,15 +13,6 @@ interface ActivityPresentation {
 }
 
 const PRESENTATIONS: Record<ActivityMode, ActivityPresentation> = {
-  running: {
-    icon: '🏃',
-    labelZh: '跑步',
-    labelEn: 'Run',
-    primaryColor: '#f97316',
-    highlightColor: '#ef4444',
-    longDistanceKm: 20,
-    performanceKind: 'pace',
-  },
   cycling: {
     icon: '🚴',
     labelZh: '骑行',
@@ -29,15 +20,6 @@ const PRESENTATIONS: Record<ActivityMode, ActivityPresentation> = {
     primaryColor: '#3b82f6',
     highlightColor: '#8b5cf6',
     longDistanceKm: 50,
-    performanceKind: 'speed',
-  },
-  hiking: {
-    icon: '🥾',
-    labelZh: '徒步',
-    labelEn: 'Hike',
-    primaryColor: '#22c55e',
-    highlightColor: '#15803d',
-    longDistanceKm: 10,
     performanceKind: 'speed',
   },
 };

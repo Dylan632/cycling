@@ -46,7 +46,7 @@ test('runtime and publication consume one shared activity profile source', async
     '/src/modules/activity/profiles.ts'
   );
 
-  for (const mode of ['running', 'cycling', 'hiking']) {
+  for (const mode of ['cycling']) {
     const runtime = getActivityProfile(mode);
     const shared = rawProfiles.profiles[mode];
 
@@ -160,148 +160,6 @@ test('publication rejects missing, invalid, or non-UTC publication timestamps', 
   }
 });
 
-test('hiking publication includes only Hiking activities strictly over 1 km', async () => {
-  const fixtureDir = await mkdtemp(join(tmpdir(), 'publication-hiking-'));
-  const inputPath = join(fixtureDir, 'activities.json');
-  const outputPath = join(fixtureDir, 'data');
-
-  try {
-    await writeFile(
-      inputPath,
-      JSON.stringify([
-        activity({
-          run_id: 1,
-          name: 'Exactly one kilometre',
-          type: 'Hiking',
-          subtype: 'Hiking',
-          distance: 1_000,
-        }),
-        activity({
-          run_id: 2,
-          name: 'Published hike',
-          type: 'Hiking',
-          subtype: 'Hiking',
-          distance: 1_001,
-        }),
-        activity({
-          run_id: 3,
-          name: 'Long walk',
-          type: 'Walk',
-          subtype: 'Walking',
-          distance: 5_000,
-        }),
-      ])
-    );
-
-    const result = spawnSync(
-      process.execPath,
-      [
-        'scripts/publish-activity-data.mjs',
-        '--mode',
-        'hiking',
-        '--input',
-        inputPath,
-        '--output',
-        outputPath,
-        '--published-at',
-        '2026-07-27T04:00:00.000Z',
-      ],
-      { cwd: process.cwd(), encoding: 'utf8' }
-    );
-    assert.equal(result.status, 0, result.stderr || result.stdout);
-
-    const metadata = JSON.parse(
-      await readFile(join(outputPath, 'hiking', 'metadata.json'), 'utf8')
-    );
-    assert.deepEqual(
-      metadata.map(({ run_id, type, distance }) => ({
-        run_id,
-        type,
-        distance,
-      })),
-      [{ run_id: '2', type: 'Hiking', distance: 1_001 }]
-    );
-  } finally {
-    await rm(fixtureDir, { recursive: true, force: true });
-  }
-});
-
-test('running publication excludes every indoor running activity', async () => {
-  const fixtureDir = await mkdtemp(join(tmpdir(), 'publication-running-'));
-  const inputPath = join(fixtureDir, 'activities.json');
-  const outputPath = join(fixtureDir, 'data');
-
-  try {
-    await writeFile(
-      inputPath,
-      JSON.stringify([
-        activity({
-          run_id: 1,
-          name: 'Outdoor run',
-          type: 'Run',
-          subtype: 'Run',
-          distance: 5_000,
-        }),
-        activity({
-          run_id: 2,
-          name: 'Indoor virtual run',
-          type: 'VirtualRun',
-          subtype: 'indoor',
-          distance: 5_000,
-        }),
-        activity({
-          run_id: 3,
-          name: 'Indoor run',
-          type: 'Run',
-          subtype: 'indoor',
-          distance: 5_000,
-        }),
-        activity({
-          run_id: 4,
-          name: 'Treadmill run',
-          type: 'Run',
-          subtype: 'treadmill',
-          distance: 5_000,
-        }),
-        activity({
-          run_id: 5,
-          name: 'Alternate virtual run',
-          type: 'Run',
-          subtype: 'virtual_run',
-          distance: 5_000,
-        }),
-      ])
-    );
-
-    const result = spawnSync(
-      process.execPath,
-      [
-        'scripts/publish-activity-data.mjs',
-        '--mode',
-        'running',
-        '--input',
-        inputPath,
-        '--output',
-        outputPath,
-        '--published-at',
-        '2026-07-27T04:00:00.000Z',
-      ],
-      { cwd: process.cwd(), encoding: 'utf8' }
-    );
-    assert.equal(result.status, 0, result.stderr || result.stdout);
-
-    const metadata = JSON.parse(
-      await readFile(join(outputPath, 'running', 'metadata.json'), 'utf8')
-    );
-    assert.deepEqual(
-      metadata.map(({ run_id, type }) => ({ run_id, type })),
-      [{ run_id: '1', type: 'Run' }]
-    );
-  } finally {
-    await rm(fixtureDir, { recursive: true, force: true });
-  }
-});
-
 test('publication preserves activity ids beyond the JavaScript safe integer range', async () => {
   const fixtureDir = await mkdtemp(join(tmpdir(), 'publication-large-id-'));
   const inputPath = join(fixtureDir, 'activities.json');
@@ -357,25 +215,15 @@ test('poster assets are selected by mode and remain lazy', async () => {
     'utf8'
   );
 
-  const running = getPosterAssets('running');
   const cycling = getPosterAssets('cycling');
-  const hiking = getPosterAssets('hiking');
 
-  assert.ok(running.totalStat['./running/github.svg']);
-  assert.equal(
-    Object.keys(running.all).every((path) => path.startsWith('./running/')),
-    true
-  );
+  assert.ok(cycling.totalStat['./cycling/github.svg']);
   assert.equal(
     Object.keys(cycling.all).every((path) => path.startsWith('./cycling/')),
     true
   );
   assert.equal(
-    Object.keys(hiking.all).every((path) => path.startsWith('./hiking/')),
-    true
-  );
-  assert.equal(
-    Object.values(running.totalStat).every(
+    Object.values(cycling.totalStat).every(
       (loader) => typeof loader === 'function'
     ),
     true

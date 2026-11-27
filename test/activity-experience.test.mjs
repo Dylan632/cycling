@@ -107,23 +107,15 @@ test('activity switch stays on the same origin and preserves route context', asy
       'nav[aria-label="运动类型"]'
     );
     const links = [...(switchNav?.querySelectorAll('a') ?? [])];
-    const running = links.find(
-      (link) => link.textContent?.trim() === 'Running'
-    );
     const cycling = links.find(
       (link) => link.textContent?.trim() === 'Cycling'
     );
 
     assert.ok(switchNav);
     assert.equal(
-      running?.getAttribute('href'),
-      '/running?year=2025&view=map#run_42'
-    );
-    assert.equal(
       cycling?.getAttribute('href'),
       '/cycling?year=2025&view=map#run_42'
     );
-    assert.equal(running?.hasAttribute('aria-current'), false);
     assert.equal(cycling?.getAttribute('aria-current'), 'page');
     assert.equal(
       links.every((link) => !/^https?:\/\//.test(link.getAttribute('href'))),
@@ -182,7 +174,6 @@ test('activity metrics follow the runtime route instead of a build-time mode', a
     );
 
   const cycling = new JSDOM(renderForMode('cycling'));
-  const running = new JSDOM(renderForMode('running'));
   try {
     assert.match(
       cycling.window.document.querySelector('table').textContent,
@@ -192,13 +183,8 @@ test('activity metrics follow the runtime route instead of a build-time mode', a
       cycling.window.document.querySelector('tbody').textContent,
       /24\.0/
     );
-    assert.match(
-      running.window.document.querySelector('table').textContent,
-      /Pace/
-    );
   } finally {
     cycling.window.close();
-    running.window.close();
   }
 });
 
@@ -521,7 +507,7 @@ test('resource budget CLI checks route-critical chunks and initial activity data
     await Promise.all([
       mkdir(assetsDir, { recursive: true }),
       mkdir(manifestDir, { recursive: true }),
-      ...['running', 'cycling', 'hiking'].flatMap((mode) => [
+      ...['cycling'].flatMap((mode) => [
         mkdir(join(dataDir, mode, 'routes'), { recursive: true }),
       ]),
     ]);
@@ -534,7 +520,7 @@ test('resource budget CLI checks route-critical chunks and initial activity data
       writeFile(join(assetsDir, 'dashboard.js'), 'dashboard'),
       writeFile(join(assetsDir, 'route-map.js'), 'route map loader'),
       writeFile(join(assetsDir, 'mapbox.js'), randomBytes(400_000)),
-      ...['running', 'cycling', 'hiking'].flatMap((mode) => [
+      ...['cycling'].flatMap((mode) => [
         writeFile(
           join(dataDir, mode, 'manifest.json'),
           JSON.stringify({ latestYear: '2026' })
@@ -563,7 +549,7 @@ test('resource budget CLI checks route-critical chunks and initial activity data
     assert.match(passing.stdout, /mapbox.*dynamic/i);
 
     await writeFile(
-      join(dataDir, 'running', 'metadata.json'),
+      join(dataDir, 'cycling', 'metadata.json'),
       randomBytes(40_000)
     );
     const failing = spawnSync(process.execPath, args, {
@@ -571,18 +557,7 @@ test('resource budget CLI checks route-critical chunks and initial activity data
       encoding: 'utf8',
     });
     assert.notEqual(failing.status, 0);
-    assert.match(failing.stderr, /running.*30000/i);
-
-    await Promise.all([
-      writeFile(join(dataDir, 'running', 'metadata.json'), '[]'),
-      writeFile(join(dataDir, 'hiking', 'metadata.json'), randomBytes(40_000)),
-    ]);
-    const hikingFailing = spawnSync(process.execPath, args, {
-      cwd: process.cwd(),
-      encoding: 'utf8',
-    });
-    assert.notEqual(hikingFailing.status, 0);
-    assert.match(hikingFailing.stderr, /hiking.*30000/i);
+    assert.match(failing.stderr, /cycling.*30000/i);
   } finally {
     await rm(fixtureDir, { recursive: true, force: true });
   }

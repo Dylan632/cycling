@@ -5,11 +5,7 @@ import {
   ACTIVITY_TYPES,
   RICH_TITLE,
 } from './const';
-import {
-  isCyclingActivity,
-  isHikingActivity,
-  type ActivityMode,
-} from './activityMode';
+import { isCyclingActivity, type ActivityMode } from './activityMode';
 
 export type Coordinate = [number, number];
 
@@ -43,11 +39,7 @@ export interface Activity {
 const titleForShow = (run: Activity): string => {
   const date = run.start_date_local.slice(0, 11);
   const distance = (run.distance / M_TO_DIST).toFixed(2);
-  const activityName = isCyclingActivity(run)
-    ? 'Ride'
-    : isHikingActivity(run)
-      ? 'Hike'
-      : 'Run';
+  const activityName = 'Ride';
   let name = activityName;
   if (run.name.slice(0, 7) === 'Running') {
     name = 'run';
@@ -62,7 +54,7 @@ const titleForShow = (run: Activity): string => {
   }`;
 };
 
-const formatPace = (d: number, mode: ActivityMode = 'running'): string => {
+const formatPace = (d: number, mode: ActivityMode = 'cycling'): string => {
   if (Number.isNaN(d) || d <= 0) {
     return mode === 'cycling' ? `0.0 ${DIST_UNIT}/h` : '0';
   }
@@ -256,9 +248,6 @@ const titleForRun = (run: Activity): string => {
   }
   if (isCyclingActivity(run)) {
     return ACTIVITY_TYPES.CYCLING_TITLE;
-  }
-  if (isHikingActivity(run)) {
-    return ACTIVITY_TYPES.HIKING_TITLE;
   }
   // 3. use time+length if location or type is not available
   const runDistance = run.distance / 1000;
