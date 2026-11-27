@@ -79,6 +79,6 @@ test('each activity route exposes one absolute canonical URL', async () => {
 
   assert.equal(
     cycling.canonicalUrl,
-    'https://running-page-zeta-lake.vercel.app/cycling'
+    'https://Dylan632.github.io/cycling/cycling'
   );
 });
